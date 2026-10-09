@@ -16,7 +16,7 @@ jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: opentofu/setup-opentofu@v1
         with:
           tofu_version: ${{ env.TOFU_VERSION }}
@@ -26,7 +26,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: opentofu/setup-opentofu@v1
         with:
           tofu_version: ${{ env.TOFU_VERSION }}
@@ -61,6 +61,6 @@ jobs:
     # `scripts/polyrepo/split.sh` adds `docker/tofu-runner.Dockerfile` to this repository.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - run: docker build -f docker/tofu-runner.Dockerfile -t orkstage/tofu-runner:ci .
       - run: docker run --rm orkstage/tofu-runner:ci version

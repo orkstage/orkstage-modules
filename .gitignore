@@ -1,0 +1,7 @@
+# OpenTofu working files from local runs (state lives in the S3 backend, never here)
+.terraform/
+.terraform.lock.hcl.bak
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfplan

@@ -4,7 +4,7 @@
 # minimal image instead, as documented at https://opentofu.org/docs/intro/install/docker/.
 FROM ghcr.io/opentofu/opentofu:1.12.7-minimal AS tofu
 
-FROM alpine:3.22
+FROM alpine:3.24
 RUN apk add --no-cache ca-certificates git
 COPY --from=tofu /usr/local/bin/tofu /usr/local/bin/tofu
 COPY modules /modules

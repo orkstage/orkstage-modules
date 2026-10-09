@@ -32,7 +32,7 @@ jobs:
           tofu_version: ${{ env.TOFU_VERSION }}
           tofu_wrapper: false
       - name: Cache provider plugins
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.terraform.d/plugin-cache
           key: tofu-plugins-${{ hashFiles('modules/**/versions.tf') }}

@@ -21,12 +21,9 @@ updates:
     schedule:
       interval: weekly
     groups:
-      minor-and-patch:
+      actions:
         patterns:
           - "*"
-        update-types:
-          - minor
-          - patch
 
   # OpenTofu and Alpine base images of the runner image.
   - package-ecosystem: docker
@@ -40,3 +37,7 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major

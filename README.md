@@ -42,7 +42,9 @@ The modules are plain OpenTofu, so you can also use them directly.
 | [`modules/aws/ingress`](modules/aws/ingress) | `ingress` | Application Load Balancer with one target group per routed service |
 | [`modules/aws/dns`](modules/aws/dns) | `dns` | Route 53 record aliased to the ingress, optional ACM certificate and HTTPS listener |
 
-Azure and OCI modules are planned; in OrkStage those providers are simulated today.
+Modules for Azure, Google Cloud, OCI, DigitalOcean, Vultr, CoreWeave and Magalu Cloud live under
+`modules/<provider>/` with the same resource types where the provider offers them. They are in
+preview: they pass `tofu validate` and the adapter tests, but are not yet proven on live accounts.
 
 ```mermaid
 flowchart LR

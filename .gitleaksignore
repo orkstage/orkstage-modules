@@ -1,0 +1,3 @@
+# Reviewed gitleaks findings that are not secrets (fingerprint per line). Add one only after review.
+885dbf3b4fc482c0d52a35c93a5f98a1212fd0dc:modules/oci/postgres/main.tf:hashicorp-tf-password:128
+c2a8b25544482404843809e4dd324bed51d81550:modules/oci/postgres/main.tf:hashicorp-tf-password:128

@@ -5,7 +5,7 @@ updates:
     directories:
       - /modules/*/*
     schedule:
-      interval: weekly
+      interval: monthly
     groups:
       providers:
         patterns: ['*']
@@ -19,7 +19,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     groups:
       actions:
         patterns:
@@ -29,7 +29,7 @@ updates:
   - package-ecosystem: docker
     directory: /docker
     schedule:
-      interval: weekly
+      interval: monthly
     groups:
       minor-and-patch:
         patterns:

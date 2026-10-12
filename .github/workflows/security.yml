@@ -1,0 +1,25 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Weekly: new advisories against dependencies that did not change.
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Known vulnerabilities in the OpenTofu runner image. Fails on critical ones that have a fix.
+  runner-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -f docker/tofu-runner.Dockerfile -t orkstage/tofu-runner:scan .
+      - name: Trivy (image)
+        run: >-
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.57.1 image --quiet
+          --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1 orkstage/tofu-runner:scan

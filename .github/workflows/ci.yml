@@ -1,10 +1,17 @@
 name: CI
 
 on:
-  # Merges to main are not built again (the pull request was); release tags are.
+  # Release tags are built too.
   push:
     tags: ['v*']
+  # Pull requests are built; merges to main are not built again. Pull requests that only change
+  # Markdown or docs/ skip CI. A weekly run on main scans for secrets and refreshes the caches that
+  # pull requests restore (a pull request can only reuse caches saved on main).
   pull_request:
+    paths-ignore: ['**/*.md', 'docs/**']
+  schedule:
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
 
 # A new push to a pull request cancels its previous run.
 concurrency:
@@ -18,8 +25,7 @@ env:
   TOFU_VERSION: 1.12.7
 
 jobs:
-  # Secret scan of the whole history with gitleaks. Reviewed false positives go in .gitleaksignore.
-  secrets:
+  fmt:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -30,11 +36,6 @@ jobs:
           docker run --rm -v "$PWD:/repo" -w /repo
           -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*'
           ghcr.io/gitleaks/gitleaks:v8.24.3 git /repo --redact --no-banner --verbose
-
-  fmt:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
       - uses: opentofu/setup-opentofu@v2
         with:
           tofu_version: ${{ env.TOFU_VERSION }}

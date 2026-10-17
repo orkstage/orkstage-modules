@@ -52,12 +52,20 @@ resource "google_compute_router" "this" {
   network = google_compute_network.this.id
 }
 
+# A reserved address (instead of AUTO_ONLY) gives the network a fixed egress for allowlists.
+resource "google_compute_address" "nat" {
+  count  = var.nat_gateway ? 1 : 0
+  name   = "${var.name}-nat"
+  region = var.region
+}
+
 resource "google_compute_router_nat" "this" {
   count                              = var.nat_gateway ? 1 : 0
   name                               = "${var.name}-nat"
   router                             = google_compute_router.this[0].name
   region                             = var.region
-  nat_ip_allocate_option             = "AUTO_ONLY"
+  nat_ip_allocate_option             = "MANUAL_ONLY"
+  nat_ips                            = google_compute_address.nat[*].self_link
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
 }
 
@@ -70,3 +78,6 @@ output "cidr" { value = google_compute_subnetwork.this.ip_cidr_range }
 output "region" { value = var.region }
 output "services_range" { value = google_compute_global_address.services.name }
 output "nat" { value = var.nat_gateway }
+output "private_egress" { value = var.nat_gateway }
+# Fixed public address of the Cloud NAT, for allowlists on other providers.
+output "egress_ips" { value = join(",", google_compute_address.nat[*].address) }

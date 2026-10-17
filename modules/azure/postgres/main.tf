@@ -35,6 +35,12 @@ variable "vnet_id" {
   type    = string
   default = ""
 }
+# Public endpoint only: the egress addresses of consumers on other providers. When set, they replace
+# the rule that admits every Azure service.
+variable "allowed_ips" {
+  type    = list(string)
+  default = []
+}
 variable "username" {
   type    = string
   default = "orkadmin"
@@ -146,13 +152,22 @@ resource "azurerm_postgresql_flexible_server" "this" {
   depends_on = [azurerm_private_dns_zone_virtual_network_link.this]
 }
 
-# Without a network the server is public, open to Azure services only (0.0.0.0 means that).
+# Without a network the server is public, open to Azure services only (0.0.0.0 means that), unless
+# an allowlist names the addresses that may connect.
 resource "azurerm_postgresql_flexible_server_firewall_rule" "azure" {
-  count            = local.private ? 0 : 1
+  count            = local.private || length(var.allowed_ips) > 0 ? 0 : 1
   name             = "allow-azure-services"
   server_id        = azurerm_postgresql_flexible_server.this.id
   start_ip_address = "0.0.0.0"
   end_ip_address   = "0.0.0.0"
+}
+
+resource "azurerm_postgresql_flexible_server_firewall_rule" "allowed" {
+  for_each         = local.private ? toset([]) : toset(var.allowed_ips)
+  name             = "allow-${replace(each.value, ".", "-")}"
+  server_id        = azurerm_postgresql_flexible_server.this.id
+  start_ip_address = each.value
+  end_ip_address   = each.value
 }
 
 resource "azurerm_postgresql_flexible_server_database" "this" {

@@ -178,3 +178,5 @@ output "private_subnet_ids" { value = oci_core_subnet.private.id }
 # Without NAT, private subnets reach only Oracle services; workloads that pull public images
 # must run in the public subnet.
 output "private_egress" { value = var.nat_gateway }
+# Fixed public address of the NAT gateway, for allowlists on other providers.
+output "egress_ips" { value = join(",", oci_core_nat_gateway.this[*].nat_ip) }

@@ -35,6 +35,13 @@ variable "secrets" {
   }))
   default = {}
 }
+# NAME => value of credentials owned by another provider, copied by OrkStage at deploy time
+# through TF_VAR_external_secrets (never written to files).
+variable "external_secrets" {
+  type      = map(string)
+  default   = {}
+  sensitive = true
+}
 # Storage accounts the app may read and write with its identity.
 variable "storage_account_ids" {
   type    = list(string)
@@ -72,11 +79,13 @@ locals {
   own_env = var.environment_id == ""
   scaled  = var.autoscaling != null
   # The CPU scaler cannot wake an app from zero, so a scaled app keeps at least one replica.
-  min_replicas = local.scaled ? max(1, var.autoscaling.min_replicas) : var.replicas
-  max_replicas = local.scaled ? max(local.min_replicas, var.autoscaling.max_replicas) : max(1, var.replicas)
-  vault_ids    = toset([for s in values(var.secrets) : s.vault_id])
-  secret_names = { for k, s in var.secrets : k => lower(replace(k, "_", "-")) }
-  grants       = length(var.secrets) + length(var.storage_account_ids)
+  min_replicas   = local.scaled ? max(1, var.autoscaling.min_replicas) : var.replicas
+  max_replicas   = local.scaled ? max(local.min_replicas, var.autoscaling.max_replicas) : max(1, var.replicas)
+  vault_ids      = toset([for s in values(var.secrets) : s.vault_id])
+  secret_names   = { for k, s in var.secrets : k => lower(replace(k, "_", "-")) }
+  external_keys  = nonsensitive(keys(var.external_secrets))
+  external_names = { for k in local.external_keys : k => "ext-${lower(replace(k, "_", "-"))}" }
+  grants         = length(var.secrets) + length(var.storage_account_ids)
 }
 
 resource "azurerm_resource_group" "this" {
@@ -165,6 +174,15 @@ resource "azurerm_container_app" "this" {
     }
   }
 
+  # Credentials of resources on other providers: stored as Container Apps secrets.
+  dynamic "secret" {
+    for_each = toset(local.external_keys)
+    content {
+      name  = local.external_names[secret.key]
+      value = var.external_secrets[secret.key]
+    }
+  }
+
   dynamic "ingress" {
     for_each = var.port == null ? [] : [1]
     content {
@@ -206,6 +224,13 @@ resource "azurerm_container_app" "this" {
         content {
           name        = env.key
           secret_name = local.secret_names[env.key]
+        }
+      }
+      dynamic "env" {
+        for_each = toset(local.external_keys)
+        content {
+          name        = env.key
+          secret_name = local.external_names[env.key]
         }
       }
 

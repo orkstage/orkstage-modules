@@ -28,6 +28,11 @@ variable "network_id" {
   type    = string
   default = ""
 }
+# Public IP only: the egress addresses of consumers on other providers (authorized networks).
+variable "allowed_ips" {
+  type    = list(string)
+  default = []
+}
 variable "production" {
   type    = bool
   default = false
@@ -85,6 +90,13 @@ resource "google_sql_database_instance" "this" {
       private_network                               = local.private ? var.network_id : null
       enable_private_path_for_google_cloud_services = local.private
       ssl_mode                                      = "ENCRYPTED_ONLY"
+      dynamic "authorized_networks" {
+        for_each = var.allowed_ips
+        content {
+          name  = "allow-${replace(authorized_networks.value, ".", "-")}"
+          value = "${authorized_networks.value}/32"
+        }
+      }
     }
 
     backup_configuration {

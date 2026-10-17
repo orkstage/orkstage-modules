@@ -35,6 +35,14 @@ variable "secrets" {
   type    = map(string)
   default = {}
 }
+# NAME => value of credentials owned by another provider (a database on Azure, for example), copied
+# here by OrkStage at deploy time. Stored in one Secrets Manager secret of this service and injected
+# by ECS like `secrets`; OrkStage passes the map through TF_VAR_external_secrets, never in files.
+variable "external_secrets" {
+  type      = map(string)
+  default   = {}
+  sensitive = true
+}
 variable "target_group_arn" {
   type    = string
   default = ""
@@ -69,12 +77,17 @@ variable "autoscaling" {
 data "aws_region" "current" {}
 
 locals {
-  fargate   = var.capacity != "EC2"
-  task_cpu  = tostring(max(256, floor(var.cpu * 1024)))
-  container = var.name
-  env       = [for k, v in var.environment : { name = k, value = v }]
-  secrets   = [for k, v in var.secrets : { name = k, valueFrom = v }]
-  scaled    = var.autoscaling != null
+  fargate       = var.capacity != "EC2"
+  task_cpu      = tostring(max(256, floor(var.cpu * 1024)))
+  container     = var.name
+  env           = [for k, v in var.environment : { name = k, value = v }]
+  external_keys = nonsensitive(keys(var.external_secrets))
+  secrets = concat(
+    [for k, v in var.secrets : { name = k, valueFrom = v }],
+    [for k in local.external_keys : { name = k, valueFrom = "${aws_secretsmanager_secret.external[0].arn}:${k}::" }],
+  )
+  readable_secrets = concat(values(var.secrets), aws_secretsmanager_secret.external[*].arn)
+  scaled           = var.autoscaling != null
   # Start inside the scaling range; afterwards the autoscaler owns the task count.
   initial_count = local.scaled ? min(max(var.replicas, var.autoscaling.min_replicas), var.autoscaling.max_replicas) : var.replicas
   service       = one(concat(aws_ecs_service.this, aws_ecs_service.scaled))
@@ -98,14 +111,27 @@ resource "aws_iam_role_policy_attachment" "execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+resource "aws_secretsmanager_secret" "external" {
+  count                   = length(local.external_keys) > 0 ? 1 : 0
+  name                    = "${var.name}-external"
+  description             = "Credentials of resources on other providers, copied by OrkStage for ${var.name}."
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "external" {
+  count         = length(local.external_keys) > 0 ? 1 : 0
+  secret_id     = aws_secretsmanager_secret.external[0].id
+  secret_string = jsonencode(var.external_secrets)
+}
+
 # Least privilege: the task may read exactly the secrets it references.
 resource "aws_iam_role_policy" "secrets" {
-  count = length(var.secrets) > 0 ? 1 : 0
+  count = length(var.secrets) + length(local.external_keys) > 0 ? 1 : 0
   name  = "read-referenced-secrets"
   role  = aws_iam_role.execution.id
   policy = jsonencode({
     Version   = "2012-10-17"
-    Statement = [{ Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = values(var.secrets) }]
+    Statement = [{ Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = local.readable_secrets }]
   })
 }
 

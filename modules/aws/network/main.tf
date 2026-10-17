@@ -120,3 +120,5 @@ output "private_subnet_ids" { value = join(",", aws_subnet.private[*].id) }
 output "internal_sg_id" { value = aws_security_group.internal.id }
 # Without NAT, private subnets have no egress; workloads that pull images must use public subnets.
 output "private_egress" { value = var.nat_gateway }
+# Fixed public address of traffic leaving the private subnets, for allowlists on other providers.
+output "egress_ips" { value = join(",", aws_eip.nat[*].public_ip) }

@@ -167,3 +167,5 @@ output "static_ip" { value = azurerm_container_app_environment.this.static_ip_ad
 output "log_workspace_id" { value = azurerm_log_analytics_workspace.this.workspace_id }
 output "redis_dns_zone_id" { value = azurerm_private_dns_zone.redis.id }
 output "private_egress" { value = var.nat_gateway }
+# Fixed public address of the apps subnet's outbound traffic, for allowlists on other providers.
+output "egress_ips" { value = join(",", azurerm_public_ip.nat[*].ip_address) }

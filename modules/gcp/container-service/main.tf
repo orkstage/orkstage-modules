@@ -50,6 +50,13 @@ variable "secrets" {
   type    = map(string)
   default = {}
 }
+# NAME => value of credentials owned by another provider, copied by OrkStage at deploy time
+# through TF_VAR_external_secrets (never written to files).
+variable "external_secrets" {
+  type      = map(string)
+  default   = {}
+  sensitive = true
+}
 # Buckets the service may read and write.
 variable "buckets" {
   type    = list(string)
@@ -68,6 +75,31 @@ resource "google_service_account" "this" {
 resource "google_secret_manager_secret_iam_member" "secrets" {
   for_each  = toset(values(var.secrets))
   secret_id = each.value
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.this.email}"
+}
+
+locals {
+  external_keys = nonsensitive(keys(var.external_secrets))
+}
+
+resource "google_secret_manager_secret" "external" {
+  for_each  = toset(local.external_keys)
+  secret_id = "${var.name}-${lower(replace(each.key, "_", "-"))}"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "external" {
+  for_each    = toset(local.external_keys)
+  secret      = google_secret_manager_secret.external[each.key].id
+  secret_data = var.external_secrets[each.key]
+}
+
+resource "google_secret_manager_secret_iam_member" "external" {
+  for_each  = toset(local.external_keys)
+  secret_id = google_secret_manager_secret.external[each.key].id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.this.email}"
 }
@@ -143,6 +175,18 @@ resource "google_cloud_run_v2_service" "this" {
           }
         }
       }
+      dynamic "env" {
+        for_each = toset(local.external_keys)
+        content {
+          name = env.key
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.external[env.key].secret_id
+              version = "latest"
+            }
+          }
+        }
+      }
 
       dynamic "startup_probe" {
         for_each = var.health_check_path == "" ? [] : [1]
@@ -165,7 +209,7 @@ resource "google_cloud_run_v2_service" "this" {
   }
 
   # Secret access must exist before the first revision starts, or it fails to mount them.
-  depends_on = [google_secret_manager_secret_iam_member.secrets, google_storage_bucket_iam_member.buckets]
+  depends_on = [google_secret_manager_secret_iam_member.secrets, google_secret_manager_secret_iam_member.external, google_secret_manager_secret_version.external, google_storage_bucket_iam_member.buckets]
 }
 
 output "kind" { value = "compute.container-service" }

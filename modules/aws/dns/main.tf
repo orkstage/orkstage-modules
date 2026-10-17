@@ -24,6 +24,12 @@ variable "custom_domains" {
   type    = list(string)
   default = []
 }
+# Security policy of the HTTPS listener. The platform policy `minTlsVersion: 1.3` selects the
+# TLS 1.3 only policy.
+variable "ssl_policy" {
+  type    = string
+  default = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+}
 # True once OrkStage saw the custom certificate issued: only then can the listener use it.
 variable "attach_custom_certificate" {
   type    = bool
@@ -84,7 +90,7 @@ resource "aws_lb_listener" "https" {
   load_balancer_arn = var.lb_arn
   port              = 443
   protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  ssl_policy        = var.ssl_policy
   certificate_arn   = aws_acm_certificate_validation.this[0].certificate_arn
   default_action {
     type             = "forward"

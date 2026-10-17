@@ -18,6 +18,17 @@ variable "tls" {
   type    = bool
   default = true
 }
+# Custom hostnames whose ownership OrkStage verified. Their certificate is validated with records
+# the domain owner creates, so applying never waits for it.
+variable "custom_domains" {
+  type    = list(string)
+  default = []
+}
+# True once OrkStage saw the custom certificate issued: only then can the listener use it.
+variable "attach_custom_certificate" {
+  type    = bool
+  default = false
+}
 
 resource "aws_route53_zone" "created" {
   count = var.create_zone ? 1 : 0
@@ -81,8 +92,25 @@ resource "aws_lb_listener" "https" {
   }
 }
 
+resource "aws_acm_certificate" "custom" {
+  count                     = length(var.custom_domains) > 0 ? 1 : 0
+  domain_name               = var.custom_domains[0]
+  subject_alternative_names = slice(var.custom_domains, 1, length(var.custom_domains))
+  validation_method         = "DNS"
+  lifecycle { create_before_destroy = true }
+}
+
+resource "aws_lb_listener_certificate" "custom" {
+  count           = length(var.custom_domains) > 0 && var.attach_custom_certificate && length(aws_lb_listener.https) > 0 ? 1 : 0
+  listener_arn    = aws_lb_listener.https[0].arn
+  certificate_arn = aws_acm_certificate.custom[0].arn
+}
+
 output "kind" { value = "dns" }
 output "fqdn" { value = local.fqdn }
 output "zone_id" { value = local.zone_id }
 output "tls" { value = var.tls ? "issued" : "disabled" }
 output "certificate_arn" { value = var.tls ? aws_acm_certificate.this[0].arn : "" }
+output "custom_domains" { value = join(",", var.custom_domains) }
+output "custom_certificate_arn" { value = length(var.custom_domains) > 0 ? aws_acm_certificate.custom[0].arn : "" }
+output "custom_certificate_attached" { value = length(aws_lb_listener_certificate.custom) > 0 ? "true" : "false" }

@@ -47,7 +47,7 @@ Native `tofu` may be blocked on some machines; the container works everywhere (G
 
 ```bash
 M=$(pwd -W)/modules        # or $PWD/modules
-run() { MSYS_NO_PATHCONV=1 docker run --rm -v "$M:/m" -v orkstage-validate:/plugins -e TF_PLUGIN_CACHE_DIR=/plugins -w "$1" ghcr.io/opentofu/opentofu:1.12.7 "${@:2}"; }
+run() { MSYS_NO_PATHCONV=1 docker run --rm -v "$M:/m" -v orkstage-validate:/plugins -e TF_PLUGIN_CACHE_DIR=/plugins -w "$1" ghcr.io/opentofu/opentofu:1.12.9 "${@:2}"; }
 run /m fmt -check -recursive /m
 run /m/<provider>/<module> init -backend=false -input=false -no-color
 run /m/<provider>/<module> validate -no-color

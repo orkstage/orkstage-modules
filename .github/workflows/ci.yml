@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 env:
-  TOFU_VERSION: 1.12.7
+  TOFU_VERSION: 1.12.9
 
 jobs:
   fmt:

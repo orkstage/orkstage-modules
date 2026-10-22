@@ -16,7 +16,7 @@ docker build -f docker/tofu-runner.Dockerfile -t orkstage/tofu-runner:local .
 No OpenTofu on your machine? Run the same commands in the official image:
 
 ```bash
-docker run --rm -v "$PWD:/w" -w /w --entrypoint sh ghcr.io/opentofu/opentofu:1.12.7 \
+docker run --rm -v "$PWD:/w" -w /w --entrypoint sh ghcr.io/opentofu/opentofu:1.12.9 \
   -c 'tofu fmt -check -recursive modules'
 ```
 

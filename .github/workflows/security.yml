@@ -14,13 +14,21 @@ permissions:
   contents: read
 
 jobs:
-  # Known vulnerabilities in the OpenTofu runner image. Fails on critical ones that have a fix.
+  # Known vulnerabilities in the OpenTofu runner image.
+  # - OS packages (Alpine, refreshed by `apk upgrade`): critical and high findings with a fix fail.
+  # - Libraries inside binaries (the upstream `tofu` build): critical ones with a fix fail; high ones
+  #   are listed without failing, because only a new OpenTofu release can fix them. Check the list
+  #   when choosing the next OpenTofu version.
   runner-image:
     runs-on: ubuntu-latest
+    env:
+      TRIVY: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.75.0 image --quiet --scanners vuln --ignore-unfixed
     steps:
       - uses: actions/checkout@v7
       - run: docker build -f docker/tofu-runner.Dockerfile -t orkstage/tofu-runner:scan .
-      - name: Trivy (image)
-        run: >-
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.57.1 image --quiet
-          --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1 orkstage/tofu-runner:scan
+      - name: Trivy (OS packages, critical and high)
+        run: $TRIVY --pkg-types os --severity CRITICAL,HIGH --exit-code 1 orkstage/tofu-runner:scan
+      - name: Trivy (libraries in binaries, critical)
+        run: $TRIVY --pkg-types library --severity CRITICAL --exit-code 1 orkstage/tofu-runner:scan
+      - name: Trivy (libraries in binaries, high, report only)
+        run: $TRIVY --pkg-types library --severity HIGH orkstage/tofu-runner:scan
